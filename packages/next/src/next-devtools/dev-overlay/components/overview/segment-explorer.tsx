@@ -102,7 +102,7 @@ function PageSegmentTreeLayerPresentation({
 
   const folderChildrenKeys: string[] = []
   const filesChildrenKeys: string[] = []
-  let pageChild = null
+  let firstChild = null
 
   for (const childKey of sortedChildrenKeys) {
     const childNode = node.children[childKey]
@@ -122,14 +122,7 @@ function PageSegmentTreeLayerPresentation({
     const childNode = node.children[fileChildSegment]
     if (!childNode || !childNode.value) continue
 
-    // If it's a page node, we can use it as the page child
-    if (
-      childNode.value.type !== 'layout' &&
-      childNode.value.type !== 'template'
-    ) {
-      pageChild = childNode
-      break // We only need one page child
-    }
+    firstChild = childNode
   }
 
   const hasFilesChildren = filesChildrenKeys.length > 0
@@ -147,7 +140,10 @@ function PageSegmentTreeLayerPresentation({
         | 'not-found'
         | 'loading'
         | 'error'
-      boundaries[boundaryType] = childNode.value.pagePath || null
+      const boundaryPath = childNode.value.pagePath || null
+      if (boundaryPath) {
+        boundaries[boundaryType] = boundaryPath.split('/').pop() || ''
+      }
     }
   })
 
@@ -225,13 +221,15 @@ function PageSegmentTreeLayerPresentation({
                   })}
                 </span>
               )}
-              {/* TODO: only show triggers in dev panel remove this once the new panel UI is stable */}
-              {pageChild && pageChild.value && (
+
+              {firstChild && firstChild.value ? (
                 <SegmentBoundaryTrigger
                   offset={6}
-                  onSelectBoundary={pageChild.value.setBoundaryType}
+                  onSelectBoundary={firstChild.value.setBoundaryType}
                   boundaries={boundaries}
                 />
+              ) : (
+                <span className="segment-explorer-trigger-placeholder" />
               )}
             </div>
           </div>
@@ -319,7 +317,7 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
   }
 
   .segment-explorer-filename--path {
-    margin-right: 8px;
+    margin-right: auto;
   }
   .segment-explorer-filename--path small {
     display: inline-block;
@@ -333,6 +331,14 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
   .segment-explorer-files {
     display: inline-flex;
     gap: 8px;
+    margin-right: 8px;
+    margin-left: auto;
+  }
+
+  .segment-explorer-trigger-placeholder {
+    width: 20px;
+    height: 20px;
+    border-radius: 16px;
   }
 
   .segment-explorer-file-label {
@@ -354,29 +360,36 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
 
   .segment-explorer-file-label--layout,
   .segment-explorer-file-label--template,
-  .segment-explorer-file-label--default {
+  .segment-explorer-file-label--default,
+  .segment-explorer-file-label--page,
+  .segment-explorer-file-label--not-found,
+  .segment-explorer-file-label--forbidden,
+  .segment-explorer-file-label--unauthorized,
+  .segment-explorer-file-label--loading,
+  .segment-explorer-file-label--error,
+  .segment-explorer-file-label--global-error {
     background-color: var(--color-gray-300);
     color: var(--color-gray-1000);
   }
-  .segment-explorer-file-label--page {
-    background-color: var(--color-blue-300);
-    color: var(--color-blue-900);
-  }
-  .segment-explorer-file-label--not-found,
-  .segment-explorer-file-label--forbidden,
-  .segment-explorer-file-label--unauthorized {
-    background-color: var(--color-amber-300);
-    color: var(--color-amber-900);
-  }
-  .segment-explorer-file-label--loading {
-    background-color: var(--color-green-300);
-    color: var(--color-green-900);
-  }
-  .segment-explorer-file-label--error,
-  .segment-explorer-file-label--global-error {
-    background-color: var(--color-red-300);
-    color: var(--color-red-900);
-  }
+  // .segment-explorer-file-label--page {
+  //   background-color: var(--color-blue-300);
+  //   color: var(--color-blue-900);
+  // }
+  // .segment-explorer-file-label--not-found,
+  // .segment-explorer-file-label--forbidden,
+  // .segment-explorer-file-label--unauthorized {
+  //   background-color: var(--color-amber-300);
+  //   color: var(--color-amber-900);
+  // }
+  // .segment-explorer-file-label--loading {
+  //   background-color: var(--color-green-300);
+  //   color: var(--color-green-900);
+  // }
+  // .segment-explorer-file-label--error,
+  // .segment-explorer-file-label--global-error {
+  //   background-color: var(--color-red-300);
+  //   color: var(--color-red-900);
+  // }
   .segment-explorer-file-label--builtin {
     background-color: transparent;
     color: var(--color-gray-900);

@@ -1,6 +1,7 @@
 import { useCallback, useState, useRef } from 'react'
 import { Menu } from '@base-ui-components/react/menu'
 import type { SegmentNodeState } from '../../../userspace/app/segment-explorer-node'
+import { ChevronDownIcon } from '../../icons/chevron-down'
 
 export function SegmentBoundaryTrigger({
   onSelectBoundary,
@@ -18,21 +19,26 @@ export function SegmentBoundaryTrigger({
   })
   const shadowRootRef = useRef<ShadowRoot>(shadowRoot)
 
+  const firstDefinedBoundary = Object.values(boundaries).find((v) => v !== null)
+  const possibleExtension = firstDefinedBoundary
+    ? firstDefinedBoundary.split('.')?.pop()
+    : 'js'
+
   const triggerOptions = [
     {
-      label: 'Trigger Loading',
+      label: boundaries.loading || `loading.${possibleExtension}`,
       value: 'loading',
       icon: <LoadingIcon />,
       disabled: !boundaries.loading,
     },
     {
-      label: 'Trigger Error',
+      label: boundaries.error || `error.${possibleExtension}`,
       value: 'error',
       icon: <ErrorIcon />,
       disabled: !boundaries.error,
     },
     {
-      label: 'Trigger Not Found',
+      label: boundaries['not-found'] || `not-found.${possibleExtension}`,
       value: 'not-found',
       icon: <NotFoundIcon />,
       disabled: !boundaries['not-found'],
@@ -71,7 +77,7 @@ export function SegmentBoundaryTrigger({
           data-nextjs-dev-overlay-segment-boundary-trigger-button
           render={(triggerProps) => (
             <button {...triggerProps} type="button">
-              <DropdownIcon />
+              <ChevronDownIcon />
             </button>
           )}
         />
@@ -86,54 +92,38 @@ export function SegmentBoundaryTrigger({
             arrowPadding={8}
           >
             <Menu.Popup className="segment-boundary-dropdown">
-              {triggerOptions.map((option) => (
+              <Menu.Group>
+                <Menu.GroupLabel className="segment-boundary-group-label">
+                  Trigger overrides
+                </Menu.GroupLabel>
+                {triggerOptions.map((option) => (
+                  <Menu.Item
+                    key={option.value}
+                    className="segment-boundary-dropdown-item"
+                    onClick={() => handleSelect(option.value)}
+                    disabled={option.disabled}
+                  >
+                    {option.icon}
+                    {option.label}
+                  </Menu.Item>
+                ))}
+              </Menu.Group>
+
+              <Menu.Group>
                 <Menu.Item
-                  key={option.value}
+                  key={resetOption.value}
                   className="segment-boundary-dropdown-item"
-                  onClick={() => handleSelect(option.value)}
-                  disabled={option.disabled}
+                  onClick={() => handleSelect(resetOption.value)}
                 >
-                  {option.icon}
-                  {option.label}
+                  {resetOption.icon}
+                  {resetOption.label}
                 </Menu.Item>
-              ))}
-
-              <div className="segment-boundary-dropdown-divider" />
-
-              <Menu.Item
-                key={resetOption.value}
-                className="segment-boundary-dropdown-item"
-                onClick={() => handleSelect(resetOption.value)}
-              >
-                {resetOption.icon}
-                {resetOption.label}
-              </Menu.Item>
+              </Menu.Group>
             </Menu.Popup>
           </Menu.Positioner>
         </Menu.Portal>
       </Menu.Root>
     </div>
-  )
-}
-
-/**
- * Inline svg icons for the dropdown trigger.
- * The child svg icons like `rect` are fixed size, so they can be used as shared scalable icons.
- */
-function DropdownIcon() {
-  return (
-    <svg
-      width="20px"
-      height="20px"
-      viewBox="0 0 16 16"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M2.5 6.5C3.32843 6.5 4 7.17157 4 8C4 8.82843 3.32843 9.5 2.5 9.5C1.67157 9.5 1 8.82843 1 8C1 7.17157 1.67157 6.5 2.5 6.5ZM8 6.5C8.82843 6.5 9.5 7.17157 9.5 8C9.5 8.82843 8.82843 9.5 8 9.5C7.17157 9.5 6.5 8.82843 6.5 8C6.5 7.17157 7.17157 6.5 8 6.5ZM13.5 6.5C14.3284 6.5 15 7.17157 15 8C15 8.82843 14.3284 9.5 13.5 9.5C12.6716 9.5 12 8.82843 12 8C12 7.17157 12.6716 6.5 13.5 6.5Z"
-        fill="currentColor"
-      />
-    </svg>
   )
 }
 
@@ -237,8 +227,6 @@ function ResetIcon() {
 
 export const styles = `
   .segment-boundary-trigger {
-    margin-left: auto;
-    gap: 8px;
   }
 
   .segment-boundary-trigger-button {
@@ -255,8 +243,8 @@ export const styles = `
   }
 
   .segment-boundary-trigger-button svg {
-    width: 20px;
-    height: 20px;
+    width: 16px;
+    height: 16px;
   }
 
   .segment-boundary-trigger-button:hover {
@@ -280,7 +268,7 @@ export const styles = `
   .segment-boundary-dropdown-item {
     display: flex;
     align-items: center;
-    padding: 10px 8px;
+    padding: 8px;
     line-height: 20px;
     font-size: 14px;
     border-radius: 6px;
@@ -316,9 +304,11 @@ export const styles = `
     border-bottom-right-radius: 4px;
   }
 
-  .segment-boundary-dropdown-divider {
-    height: 1px;
-    background: var(--color-gray-400);
-    margin: 8px 0;
+  .segment-boundary-group-label {
+    padding: 8px;
+    font-size: 13px;
+    line-height: 16px;
+    font-weight: 400;
+    color: var(--color-gray-900);
   }
 `
