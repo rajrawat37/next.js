@@ -10,8 +10,7 @@ import {
 } from './segment-boundary-trigger'
 import { Tooltip } from '../../../components/tooltip'
 import { useRef, useState } from 'react'
-
-const BUILTIN_PREFIX = '__next_builtin__'
+import { BUILTIN_PREFIX } from '../../../../server/app-render/segment-explorer-path'
 
 const isFileNode = (node: SegmentTrieNode) => {
   return !!node.value?.type && !!node.value?.pagePath

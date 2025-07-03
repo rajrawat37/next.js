@@ -2,6 +2,7 @@ import { useCallback, useState, useRef } from 'react'
 import { Menu } from '@base-ui-components/react/menu'
 import type { SegmentNodeState } from '../../../userspace/app/segment-explorer-node'
 import { ChevronDownIcon } from '../../icons/chevron-down'
+import { normalizeBoundaryFilename } from '../../../../server/app-render/segment-explorer-path'
 
 export function SegmentBoundaryTrigger({
   onSelectBoundary,
@@ -26,19 +27,25 @@ export function SegmentBoundaryTrigger({
 
   const triggerOptions = [
     {
-      label: boundaries.loading || `loading.${possibleExtension}`,
+      label:
+        normalizeBoundaryFilename(boundaries.loading || '') ||
+        `loading.${possibleExtension}`,
       value: 'loading',
       icon: <LoadingIcon />,
       disabled: !boundaries.loading,
     },
     {
-      label: boundaries.error || `error.${possibleExtension}`,
+      label:
+        normalizeBoundaryFilename(boundaries.error || '') ||
+        `error.${possibleExtension}`,
       value: 'error',
       icon: <ErrorIcon />,
       disabled: !boundaries.error,
     },
     {
-      label: boundaries['not-found'] || `not-found.${possibleExtension}`,
+      label:
+        normalizeBoundaryFilename(boundaries['not-found'] || '') ||
+        `not-found.${possibleExtension}`,
       value: 'not-found',
       icon: <NotFoundIcon />,
       disabled: !boundaries['not-found'],
