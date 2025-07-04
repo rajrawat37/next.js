@@ -9,11 +9,46 @@ import {
   styles as segmentBoundaryTriggerStyles,
 } from './segment-boundary-trigger'
 import { Tooltip } from '../../../components/tooltip'
-import { useRef, useState } from 'react'
+import { useRef, useState, useCallback, useMemo } from 'react'
 import { BUILTIN_PREFIX } from '../../../../server/app-render/segment-explorer-path'
 
 const isFileNode = (node: SegmentTrieNode) => {
   return !!node.value?.type && !!node.value?.pagePath
+}
+
+// Utility functions for global boundary management
+function traverseTreeAndResetBoundaries(node: SegmentTrieNode) {
+  // Reset this node's boundary if it has setBoundaryType function
+  if (node.value?.setBoundaryType) {
+    node.value.setBoundaryType(null)
+  }
+
+  // Recursively traverse children
+  Object.values(node.children).forEach((child) => {
+    if (child) {
+      traverseTreeAndResetBoundaries(child)
+    }
+  })
+}
+
+function countActiveBoundaries(node: SegmentTrieNode): number {
+  let count = 0
+
+  // Count this node's boundary override if it's active
+  // Only count nodes that have setBoundaryType (meaning they can be overridden)
+  // and have an active boundaryType override
+  if (node.value?.setBoundaryType && node.value.boundaryType) {
+    count++
+  }
+
+  // Recursively count children
+  Object.values(node.children).forEach((child) => {
+    if (child) {
+      count += countActiveBoundaries(child)
+    }
+  })
+
+  return count
 }
 
 function PageRouteBar({ page }: { page: string }) {
@@ -21,6 +56,36 @@ function PageRouteBar({ page }: { page: string }) {
     <div className="segment-explorer-page-route-bar">
       <BackArrowIcon />
       <span className="segment-explorer-page-route-bar-path">{page}</span>
+    </div>
+  )
+}
+
+function SegmentExplorerFooter({
+  activeBoundariesCount,
+  onGlobalReset,
+}: {
+  activeBoundariesCount: number
+  onGlobalReset: () => void
+}) {
+  const hasActiveOverrides = activeBoundariesCount > 0
+
+  return (
+    <div className="segment-explorer-footer">
+      <button
+        className={`segment-explorer-footer-button ${!hasActiveOverrides ? 'segment-explorer-footer-button--disabled' : ''}`}
+        onClick={hasActiveOverrides ? onGlobalReset : undefined}
+        disabled={!hasActiveOverrides}
+        type="button"
+      >
+        <span className="segment-explorer-footer-text">
+          Clear Segment Overrides
+        </span>
+        {hasActiveOverrides && (
+          <span className="segment-explorer-footer-badge">
+            {activeBoundariesCount}
+          </span>
+        )}
+      </button>
     </div>
   )
 }
@@ -33,6 +98,19 @@ export function PageSegmentTree({
   page: string
 }) {
   const tree = useSegmentTree()
+
+  // Count active boundaries for the badge
+  const activeBoundariesCount = useMemo(() => {
+    return isAppRouter ? countActiveBoundaries(tree) : 0
+  }, [tree, isAppRouter])
+
+  // Global reset handler
+  const handleGlobalReset = useCallback(() => {
+    if (isAppRouter) {
+      traverseTreeAndResetBoundaries(tree)
+    }
+  }, [tree, isAppRouter])
+
   return (
     <div data-nextjs-devtools-panel-segments-explorer>
       {isAppRouter && <PageRouteBar page={page} />}
@@ -46,6 +124,12 @@ export function PageSegmentTree({
           <p>Route Info currently is only available for the App Router.</p>
         )}
       </div>
+      {isAppRouter && (
+        <SegmentExplorerFooter
+          activeBoundariesCount={activeBoundariesCount}
+          onGlobalReset={handleGlobalReset}
+        />
+      )}
     </div>
   )
 }
@@ -380,6 +464,58 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
   .segment-explorer-file-label--builtin svg {
     margin-left: 4px;
     margin-right: -4px;
+  }
+
+  /* Footer styles */
+  .segment-explorer-footer {
+    padding: 8px;
+    border-top: 1px solid var(--color-gray-400);
+    background-color: var(--color-background-100);
+  }
+
+  .segment-explorer-footer-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px;
+    background: var(--color-background-100);
+    border: 1px solid var(--color-gray-400);
+    border-radius: 6px;
+    color: var(--color-gray-1000);
+    font-size: var(--size-14);
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+  }
+
+  .segment-explorer-footer-button:hover:not(:disabled) {
+    background: var(--color-gray-200);
+  }
+
+  .segment-explorer-footer-button--disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .segment-explorer-footer-text {
+    text-align: center;
+  }
+
+  .segment-explorer-footer-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    background: var(--color-gray-600);
+    color: var(--color-gray-100);
+    border-radius: 10px;
+    font-size: var(--size-12);
+    font-weight: 600;
+    line-height: 1;
   }
 
   ${segmentBoundaryTriggerStyles}

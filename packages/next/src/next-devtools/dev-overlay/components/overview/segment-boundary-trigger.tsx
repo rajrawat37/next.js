@@ -1,4 +1,4 @@
-import { useCallback, useState, useRef } from 'react'
+import { useCallback, useState, useRef, useMemo } from 'react'
 import { Menu } from '@base-ui-components/react/menu'
 import type { SegmentNodeState } from '../../../userspace/app/segment-explorer-node'
 import { ChevronDownIcon } from '../../icons/chevron-down'
@@ -25,27 +25,32 @@ export function SegmentBoundaryTrigger({
     ? firstDefinedBoundary.split('.')?.pop()
     : 'js'
 
+  const fileNames = useMemo(() => {
+    return Object.fromEntries(
+      Object.entries(boundaries).map(([key, value]) => {
+        const fileName =
+          normalizeBoundaryFilename(value || '') ||
+          `${key}.${possibleExtension}`
+        return [key, fileName]
+      })
+    ) as Record<keyof typeof boundaries, string>
+  }, [boundaries, possibleExtension])
+
   const triggerOptions = [
     {
-      label:
-        normalizeBoundaryFilename(boundaries.loading || '') ||
-        `loading.${possibleExtension}`,
+      label: fileNames.loading,
       value: 'loading',
       icon: <LoadingIcon />,
       disabled: !boundaries.loading,
     },
     {
-      label:
-        normalizeBoundaryFilename(boundaries.error || '') ||
-        `error.${possibleExtension}`,
+      label: fileNames.error,
       value: 'error',
       icon: <ErrorIcon />,
       disabled: !boundaries.error,
     },
     {
-      label:
-        normalizeBoundaryFilename(boundaries['not-found'] || '') ||
-        `not-found.${possibleExtension}`,
+      label: fileNames['not-found'],
       value: 'not-found',
       icon: <NotFoundIcon />,
       disabled: !boundaries['not-found'],
