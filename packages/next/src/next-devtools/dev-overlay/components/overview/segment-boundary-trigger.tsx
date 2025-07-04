@@ -11,12 +11,14 @@ export function SegmentBoundaryTrigger({
   boundaries,
   pagePath,
   fileType,
+  boundaryType,
 }: {
   onSelectBoundary: SegmentNodeState['setBoundaryType']
   offset: number
   boundaries: Record<'not-found' | 'loading' | 'error', string | null>
-  pagePath?: string
-  fileType?: string
+  fileType: string
+  pagePath: string
+  boundaryType: string | null
 }) {
   const [shadowRoot] = useState<ShadowRoot>(() => {
     const ownerDocument = document
@@ -32,35 +34,40 @@ export function SegmentBoundaryTrigger({
   const fileNames = useMemo(() => {
     return Object.fromEntries(
       Object.entries(boundaries).map(([key, value]) => {
-        const fileName =
-          normalizeBoundaryFilename(value || '') ||
-          `${key}.${possibleExtension}`
+        const fileName = normalizeBoundaryFilename(
+          value || `${key}.${possibleExtension}`
+        )
         return [key, fileName]
       })
     ) as Record<keyof typeof boundaries, string>
   }, [boundaries, possibleExtension])
 
   const fileName = (pagePath || '').split('/').pop() || ''
-  const pageFileName = normalizeBoundaryFilename(fileName)
+  const isBoundaryFile = fileType.startsWith('boundary:')
+  const pageFileName = normalizeBoundaryFilename(
+    isBoundaryFile
+      ? fileName // Show the selected boundary file name when overridden
+      : fileName || `page.${possibleExtension}`
+  )
 
   const triggerOptions = [
     {
       label: fileNames.loading,
       value: 'loading',
       icon: <LoadingIcon />,
-      disabled: !boundaries.loading,
+      disabled: !fileNames.loading,
     },
     {
       label: fileNames.error,
       value: 'error',
       icon: <ErrorIcon />,
-      disabled: !boundaries.error,
+      disabled: !fileNames.error,
     },
     {
       label: fileNames['not-found'],
       value: 'not-found',
       icon: <NotFoundIcon />,
-      disabled: !boundaries['not-found'],
+      disabled: !fileNames['not-found'],
     },
   ]
 
@@ -170,7 +177,11 @@ export function SegmentBoundaryTrigger({
             }}
           >
             <span className="segment-boundary-trigger-text">
-              {pageFileName || (isPageFile ? 'page' : 'boundary')}
+              {isPageFile
+                ? pageFileName
+                : boundaryType === null
+                  ? 'boundary'
+                  : pageFileName}
             </span>
             <ChevronDownIcon />
           </button>

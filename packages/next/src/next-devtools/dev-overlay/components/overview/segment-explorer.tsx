@@ -35,9 +35,13 @@ function countActiveBoundaries(node: SegmentTrieNode): number {
   let count = 0
 
   // Count this node's boundary override if it's active
-  // Only count nodes that have setBoundaryType (meaning they can be overridden)
-  // and have an active boundaryType override
-  if (node.value?.setBoundaryType && node.value.boundaryType) {
+  // Only count when there's a non ":boundary" type and it has an active override (boundaryType is not null)
+  // This means the file is showing an overridden boundary instead of its original file
+  if (
+    node.value?.setBoundaryType &&
+    node.value.boundaryType !== null &&
+    !node.value.type.startsWith('boundary:')
+  ) {
     count++
   }
 
@@ -230,6 +234,29 @@ function PageSegmentTreeLayerPresentation({
     }
   })
 
+  const filesChildrenKeysBesidesSelectedBoundary = filesChildrenKeys.filter(
+    (childKey) => {
+      const childNode = node.children[childKey]
+      if (!childNode || !childNode.value) return true
+      const type = childNode.value.type
+      const selectedBoundaryType = firstChild?.value?.type?.replace(
+        'boundary:',
+        ''
+      )
+      if (
+        // Filter out the static files that always need to be shown
+        type !== 'layout' &&
+        type !== 'template' &&
+        // Filter out the selected boundary in the trigger, which we don't need to show it again.
+        selectedBoundaryType &&
+        selectedBoundaryType === type
+      ) {
+        return false
+      }
+      return true
+    }
+  )
+
   return (
     <>
       {hasFilesChildren && (
@@ -254,57 +281,59 @@ function PageSegmentTreeLayerPresentation({
                 </span>
               )}
               {/* display all the file segments in this level */}
-              {filesChildrenKeys.length > 0 && (
+              {filesChildrenKeysBesidesSelectedBoundary.length > 0 && (
                 <span className="segment-explorer-files">
-                  {filesChildrenKeys.map((fileChildSegment) => {
-                    const childNode = node.children[fileChildSegment]
-                    if (!childNode || !childNode.value) {
-                      return null
-                    }
-                    // If it's boundary node, which marks the existence of the boundary not the rendered status,
-                    // we don't need to present in the rendered files.
-                    if (childNode.value.type.startsWith('boundary:')) {
-                      return null
-                    }
-                    // If it's a page file, don't show it as a separate label since it's represented by the dropdown button
-                    if (childNode.value.type === 'page') {
-                      return null
-                    }
-                    const filePath = childNode.value.pagePath
-                    const lastSegment = filePath.split('/').pop() || ''
-                    const isBuiltin = filePath.startsWith(BUILTIN_PREFIX)
-                    const fileName = lastSegment.replace(BUILTIN_PREFIX, '')
+                  {filesChildrenKeysBesidesSelectedBoundary.map(
+                    (fileChildSegment) => {
+                      const childNode = node.children[fileChildSegment]
+                      if (!childNode || !childNode.value) {
+                        return null
+                      }
+                      // If it's boundary node, which marks the existence of the boundary not the rendered status,
+                      // we don't need to present in the rendered files.
+                      if (childNode.value.type.startsWith('boundary:')) {
+                        return null
+                      }
+                      // If it's a page file, don't show it as a separate label since it's represented by the dropdown button
+                      if (childNode.value.type === 'page') {
+                        return null
+                      }
+                      const filePath = childNode.value.pagePath
+                      const lastSegment = filePath.split('/').pop() || ''
+                      const isBuiltin = filePath.startsWith(BUILTIN_PREFIX)
+                      const fileName = lastSegment.replace(BUILTIN_PREFIX, '')
 
-                    return (
-                      <span
-                        key={fileChildSegment}
-                        className={cx(
-                          'segment-explorer-file-label',
-                          `segment-explorer-file-label--${childNode.value.type}`,
-                          isBuiltin && 'segment-explorer-file-label--builtin'
-                        )}
-                        onClick={() => {
-                          openInEditor({ filePath })
-                        }}
-                      >
-                        {fileName}
-                        {isBuiltin && (
-                          <Tooltip
-                            direction="right"
-                            title={`The default Next.js not found is being shown. You can customize this page by adding your own ${fileName} file to the app/ directory.`}
-                            // x-ref: https://github.com/mui/base-ui/issues/2224
-                            // @ts-expect-error remove this expect-error once shadowRoot is supported as container
-                            container={shadowRootRef}
-                            offset={12}
-                            bgcolor="var(--color-gray-1000)"
-                            color="var(--color-gray-100)"
-                          >
-                            <InfoIcon />
-                          </Tooltip>
-                        )}
-                      </span>
-                    )
-                  })}
+                      return (
+                        <span
+                          key={fileChildSegment}
+                          className={cx(
+                            'segment-explorer-file-label',
+                            `segment-explorer-file-label--${childNode.value.type}`,
+                            isBuiltin && 'segment-explorer-file-label--builtin'
+                          )}
+                          onClick={() => {
+                            openInEditor({ filePath })
+                          }}
+                        >
+                          {fileName}
+                          {isBuiltin && (
+                            <Tooltip
+                              direction="right"
+                              title={`The default Next.js not found is being shown. You can customize this page by adding your own ${fileName} file to the app/ directory.`}
+                              // x-ref: https://github.com/mui/base-ui/issues/2224
+                              // @ts-expect-error remove this expect-error once shadowRoot is supported as container
+                              container={shadowRootRef}
+                              offset={12}
+                              bgcolor="var(--color-gray-1000)"
+                              color="var(--color-gray-100)"
+                            >
+                              <InfoIcon />
+                            </Tooltip>
+                          )}
+                        </span>
+                      )
+                    }
+                  )}
                 </span>
               )}
 
@@ -317,6 +346,7 @@ function PageSegmentTreeLayerPresentation({
                     onSelectBoundary={firstChild.value.setBoundaryType}
                     boundaries={boundaries}
                     pagePath={firstChild.value.pagePath}
+                    boundaryType={firstChild.value.boundaryType}
                     fileType={firstChild.value.type}
                   />
                 )}
@@ -509,8 +539,8 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
     min-width: 20px;
     height: 20px;
     padding: 0 6px;
-    background: var(--color-gray-600);
-    color: var(--color-gray-100);
+    background: var(--color-amber-300);
+    color: var(--color-amber-900);
     border-radius: 10px;
     font-size: var(--size-12);
     font-weight: 600;
