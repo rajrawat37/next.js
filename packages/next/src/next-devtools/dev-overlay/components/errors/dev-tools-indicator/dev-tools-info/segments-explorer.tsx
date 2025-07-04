@@ -22,6 +22,7 @@ export function SegmentsExplorer({
 
 export const SEGMENTS_EXPLORER_STYLES = `
   [data-nextjs-segments-explorer] {
+    min-width: 480px;
     margin: -16px;
   }
 `

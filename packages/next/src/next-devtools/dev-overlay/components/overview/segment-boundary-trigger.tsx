@@ -55,19 +55,19 @@ export function SegmentBoundaryTrigger({
       label: fileNames.loading,
       value: 'loading',
       icon: <LoadingIcon />,
-      disabled: !fileNames.loading,
+      disabled: !boundaries.loading,
     },
     {
       label: fileNames.error,
       value: 'error',
       icon: <ErrorIcon />,
-      disabled: !fileNames.error,
+      disabled: !boundaries.error,
     },
     {
       label: fileNames['not-found'],
       value: 'not-found',
       icon: <NotFoundIcon />,
-      disabled: !fileNames['not-found'],
+      disabled: !boundaries['not-found'],
     },
   ]
 
