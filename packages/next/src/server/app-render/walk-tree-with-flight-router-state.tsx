@@ -106,8 +106,6 @@ export async function walkTreeWithFlightRouterState({
     !flightRouterState ||
     // Segment in router state does not match current segment
     !matchSegment(actualSegment, flightRouterState[0]) ||
-    // Last item in the tree
-    parallelRoutesKeys.length === 0 ||
     // Explicit refresh
     flightRouterState[3] === 'refetch'
 
@@ -252,6 +250,10 @@ export async function walkTreeWithFlightRouterState({
   // Walk through all parallel routes.
   for (const parallelRouteKey of parallelRoutesKeys) {
     const parallelRoute = parallelRoutes[parallelRouteKey]
+
+    if (parallelRouteKey === '__not_found__' && !ctx.includeNotFound) {
+      continue
+    }
 
     const subPaths = await walkTreeWithFlightRouterState({
       ctx,

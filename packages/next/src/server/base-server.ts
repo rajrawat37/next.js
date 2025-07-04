@@ -105,6 +105,7 @@ import {
   NEXT_URL,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_IS_PRERENDER_HEADER,
+  NEXT_ROUTER_INCLUDE_NOT_FOUND_HEADER,
 } from '../client/components/app-router-headers'
 import type {
   MatchOptions,
@@ -699,6 +700,12 @@ export default abstract class Server<
       return false
     } else if (req.headers[RSC_HEADER.toLowerCase()] === '1') {
       addRequestMeta(req, 'isRSCRequest', true)
+
+      if (
+        req.headers[NEXT_ROUTER_INCLUDE_NOT_FOUND_HEADER.toLowerCase()] === '1'
+      ) {
+        addRequestMeta(req, 'isIncludeNotFound', true)
+      }
 
       if (req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] === '1') {
         addRequestMeta(req, 'isPrefetchRSCRequest', true)
@@ -2058,6 +2065,7 @@ export default abstract class Server<
     let isSSG = !!components.getStaticProps
     // NOTE: Don't delete headers[RSC] yet, it still needs to be used in renderToHTML later
     const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
+    const isIncludeNotFound = getRequestMeta(req, 'isIncludeNotFound') ?? false
 
     // Not all CDNs respect the Vary header when caching. We must assume that
     // only the URL is used to vary the responses. The Next client computes a
@@ -2283,7 +2291,8 @@ export default abstract class Server<
     // we can use this fact to only generate the flight data for the request
     // because we can't cache the HTML (as it's also dynamic).
     const isDynamicRSCRequest =
-      isRoutePPREnabled && isRSCRequest && !isPrefetchRSCRequest
+      (isRoutePPREnabled && isRSCRequest && !isPrefetchRSCRequest) ||
+      (isRSCRequest && isIncludeNotFound)
 
     // Need to read this before it's stripped by stripFlightHeaders. We don't
     // need to transfer it to the request meta because it's only read
@@ -2477,6 +2486,8 @@ export default abstract class Server<
       ssgCacheKey =
         ssgCacheKey === '/index' && pathname === '/' ? '/' : ssgCacheKey
     }
+
+    ssgCacheKey = isIncludeNotFound ? `${ssgCacheKey}.not-found` : ssgCacheKey
 
     // use existing incrementalCache instance if available
     const incrementalCache: import('./lib/incremental-cache').IncrementalCache =
