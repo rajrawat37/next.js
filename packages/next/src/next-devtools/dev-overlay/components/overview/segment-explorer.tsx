@@ -266,6 +266,10 @@ function PageSegmentTreeLayerPresentation({
                     if (childNode.value.type.startsWith('boundary:')) {
                       return null
                     }
+                    // If it's a page file, don't show it as a separate label since it's represented by the dropdown button
+                    if (childNode.value.type === 'page') {
+                      return null
+                    }
                     const filePath = childNode.value.pagePath
                     const lastSegment = filePath.split('/').pop() || ''
                     const isBuiltin = filePath.startsWith(BUILTIN_PREFIX)
@@ -274,15 +278,14 @@ function PageSegmentTreeLayerPresentation({
                     return (
                       <span
                         key={fileChildSegment}
-                        onClick={() => {
-                          if (isBuiltin) return
-                          openInEditor({ filePath })
-                        }}
                         className={cx(
                           'segment-explorer-file-label',
                           `segment-explorer-file-label--${childNode.value.type}`,
                           isBuiltin && 'segment-explorer-file-label--builtin'
                         )}
+                        onClick={() => {
+                          openInEditor({ filePath })
+                        }}
                       >
                         {fileName}
                         {isBuiltin && (
@@ -305,15 +308,18 @@ function PageSegmentTreeLayerPresentation({
                 </span>
               )}
 
-              {firstChild && firstChild.value ? (
-                <SegmentBoundaryTrigger
-                  offset={6}
-                  onSelectBoundary={firstChild.value.setBoundaryType}
-                  boundaries={boundaries}
-                />
-              ) : (
-                <span className="segment-explorer-trigger-placeholder" />
-              )}
+              {firstChild &&
+                firstChild.value &&
+                firstChild.value.type !== 'layout' &&
+                firstChild.value.type !== 'template' && (
+                  <SegmentBoundaryTrigger
+                    offset={6}
+                    onSelectBoundary={firstChild.value.setBoundaryType}
+                    boundaries={boundaries}
+                    pagePath={firstChild.value.pagePath}
+                    fileType={firstChild.value.type}
+                  />
+                )}
             </div>
           </div>
         </div>
@@ -414,14 +420,11 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
   .segment-explorer-files {
     display: inline-flex;
     gap: 8px;
-    margin-right: 8px;
     margin-left: auto;
   }
 
-  .segment-explorer-trigger-placeholder {
-    width: 20px;
-    height: 20px;
-    border-radius: 16px;
+  .segment-explorer-files + .segment-boundary-trigger {
+    margin-left: 8px;
   }
 
   .segment-explorer-file-label {
@@ -436,10 +439,6 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
     font-weight: 500;
     user-select: none;
     cursor: pointer;
-  }
-
-  .segment-explorer-file-label:hover {
-    filter: brightness(1.05);
   }
 
   .segment-explorer-file-label--layout,

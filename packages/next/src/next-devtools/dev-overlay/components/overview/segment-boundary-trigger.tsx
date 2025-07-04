@@ -3,15 +3,20 @@ import { Menu } from '@base-ui-components/react/menu'
 import type { SegmentNodeState } from '../../../userspace/app/segment-explorer-node'
 import { ChevronDownIcon } from '../../icons/chevron-down'
 import { normalizeBoundaryFilename } from '../../../../server/app-render/segment-explorer-path'
+import { cx } from '../../utils/cx'
 
 export function SegmentBoundaryTrigger({
   onSelectBoundary,
   offset,
   boundaries,
+  pagePath,
+  fileType,
 }: {
   onSelectBoundary: SegmentNodeState['setBoundaryType']
   offset: number
   boundaries: Record<'not-found' | 'loading' | 'error', string | null>
+  pagePath?: string
+  fileType?: string
 }) {
   const [shadowRoot] = useState<ShadowRoot>(() => {
     const ownerDocument = document
@@ -19,7 +24,6 @@ export function SegmentBoundaryTrigger({
     return portalNode.shadowRoot! as ShadowRoot
   })
   const shadowRootRef = useRef<ShadowRoot>(shadowRoot)
-
   const firstDefinedBoundary = Object.values(boundaries).find((v) => v !== null)
   const possibleExtension = firstDefinedBoundary
     ? firstDefinedBoundary.split('.')?.pop()
@@ -35,6 +39,9 @@ export function SegmentBoundaryTrigger({
       })
     ) as Record<keyof typeof boundaries, string>
   }, [boundaries, possibleExtension])
+
+  const fileName = (pagePath || '').split('/').pop() || ''
+  const pageFileName = normalizeBoundaryFilename(fileName)
 
   const triggerOptions = [
     {
@@ -63,6 +70,32 @@ export function SegmentBoundaryTrigger({
     icon: <ResetIcon />,
   }
 
+  const openInEditorOption = pagePath
+    ? {
+        label: 'Open in Editor',
+        value: 'open-editor',
+        icon: <EditorIcon />,
+      }
+    : null
+
+  // Check if there are any boundaries available
+  const hasBoundaries = Object.values(boundaries).some(
+    (boundary) => boundary !== null
+  )
+  const isPageFile = fileType === 'page'
+
+  const openInEditor = useCallback(({ filePath }: { filePath: string }) => {
+    const params = new URLSearchParams({
+      file: filePath,
+      isAppRelativePath: '1',
+    })
+    fetch(
+      `${
+        process.env.__NEXT_ROUTER_BASEPATH || ''
+      }/__nextjs_launch-editor?${params.toString()}`
+    )
+  }, [])
+
   const handleSelect = useCallback(
     (value: string) => {
       switch (value) {
@@ -74,36 +107,87 @@ export function SegmentBoundaryTrigger({
         case 'reset':
           onSelectBoundary(null)
           break
+        case 'open-editor':
+          if (pagePath) {
+            openInEditor({ filePath: pagePath })
+          }
+          break
         default:
           break
       }
     },
-    [onSelectBoundary]
+    [onSelectBoundary, pagePath, openInEditor]
   )
 
-  return (
-    <div className="segment-boundary-trigger">
-      <Menu.Root delay={0}>
-        <Menu.Trigger
-          className="segment-boundary-trigger-button"
-          data-nextjs-dev-overlay-segment-boundary-trigger-button
-          render={(triggerProps) => (
-            <button {...triggerProps} type="button">
-              <ChevronDownIcon />
-            </button>
-          )}
-        />
+  // For layout/template files, just render a simple button to open in editor
+  if (fileType === 'layout' || fileType === 'template') {
+    return (
+      <button
+        className="segment-boundary-trigger"
+        onClick={() => pagePath && openInEditor({ filePath: pagePath })}
+        type="button"
+      >
+        <span className="segment-boundary-trigger-text">
+          {pageFileName || fileType}
+        </span>
+      </button>
+    )
+  }
 
-        {/* @ts-expect-error remove this expect-error once shadowRoot is supported as container */}
-        <Menu.Portal container={shadowRootRef}>
-          <Menu.Positioner
-            className="segment-boundary-dropdown-positioner"
-            side="bottom"
-            align="center"
-            sideOffset={offset}
-            arrowPadding={8}
+  // Don't render the dropdown if there are no boundaries and no page file
+  if (!hasBoundaries && !isPageFile) {
+    return null
+  }
+
+  return (
+    <Menu.Root delay={0}>
+      <Menu.Trigger
+        className={cx(
+          'segment-boundary-trigger',
+          !isPageFile && 'segment-boundary-trigger--boundary'
+        )}
+        data-nextjs-dev-overlay-segment-boundary-trigger-button
+        render={(triggerProps) => (
+          <button
+            {...triggerProps}
+            type="button"
+            onClick={(event) => {
+              // Check if user clicked on the dropdown arrow area
+              const target = event.target as HTMLElement
+              const isArrowClick =
+                target.closest('svg') || target.tagName === 'svg'
+
+              // If it's not an arrow click and we have a non-page file, open in editor
+              if (!isArrowClick && !isPageFile && pagePath && pageFileName) {
+                event.preventDefault()
+                event.stopPropagation()
+                openInEditor({ filePath: pagePath })
+                return
+              }
+
+              // Otherwise, let the Menu.Trigger handle the dropdown
+              triggerProps.onClick?.(event)
+            }}
           >
-            <Menu.Popup className="segment-boundary-dropdown">
+            <span className="segment-boundary-trigger-text">
+              {pageFileName || (isPageFile ? 'page' : 'boundary')}
+            </span>
+            <ChevronDownIcon />
+          </button>
+        )}
+      />
+
+      {/* @ts-expect-error remove this expect-error once shadowRoot is supported as container */}
+      <Menu.Portal container={shadowRootRef}>
+        <Menu.Positioner
+          className="segment-boundary-dropdown-positioner"
+          side="bottom"
+          align="center"
+          sideOffset={offset}
+          arrowPadding={8}
+        >
+          <Menu.Popup className="segment-boundary-dropdown">
+            {hasBoundaries && (
               <Menu.Group>
                 <Menu.GroupLabel className="segment-boundary-group-label">
                   Trigger overrides
@@ -120,8 +204,10 @@ export function SegmentBoundaryTrigger({
                   </Menu.Item>
                 ))}
               </Menu.Group>
+            )}
 
-              <Menu.Group>
+            <Menu.Group>
+              {hasBoundaries && (
                 <Menu.Item
                   key={resetOption.value}
                   className="segment-boundary-dropdown-item"
@@ -130,12 +216,22 @@ export function SegmentBoundaryTrigger({
                   {resetOption.icon}
                   {resetOption.label}
                 </Menu.Item>
-              </Menu.Group>
-            </Menu.Popup>
-          </Menu.Positioner>
-        </Menu.Portal>
-      </Menu.Root>
-    </div>
+              )}
+              {openInEditorOption && (
+                <Menu.Item
+                  key={openInEditorOption.value}
+                  className="segment-boundary-dropdown-item"
+                  onClick={() => handleSelect(openInEditorOption.value)}
+                >
+                  {openInEditorOption.icon}
+                  {openInEditorOption.label}
+                </Menu.Item>
+              )}
+            </Menu.Group>
+          </Menu.Popup>
+        </Menu.Positioner>
+      </Menu.Portal>
+    </Menu.Root>
   )
 }
 
@@ -237,31 +333,60 @@ function ResetIcon() {
   )
 }
 
+function EditorIcon() {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path d="M12.409 3.45361L12.2274 4.18115L9.22737 16.1821L9.04475 16.9097L7.59065 16.5454L7.77229 15.8179L10.7723 3.81787L10.9539 3.09033L12.409 3.45361ZM6.81038 6.99951L3.81038 9.99951L6.81038 12.9995L5.74983 14.0601L2.39632 10.7065C2.00596 10.316 2.00587 9.68295 2.39632 9.29248L5.74983 5.93896L6.81038 6.99951ZM17.6033 9.29248C17.9938 9.68294 17.9937 10.316 17.6033 10.7065L14.2498 14.0601L13.1893 12.9995L16.1893 9.99951L13.1893 6.99951L14.2498 5.93896L17.6033 9.29248Z" />
+    </svg>
+  )
+}
+
 export const styles = `
   .segment-boundary-trigger {
-  }
-
-  .segment-boundary-trigger-button {
-    width: 24px;
-    height: 24px;
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 4px;
+    padding: 4px 6px;
+    line-height: 16px;
     font-weight: 500;
     color: var(--color-gray-1000);
     border-radius: 6px;
-    background: transparent;
+    background: var(--color-gray-300);
     border: none;
+    font-size: var(--size-12);
+    cursor: pointer;
+    transition: background-color 0.15s ease;
   }
 
-  .segment-boundary-trigger-button svg {
-    width: 16px;
-    height: 16px;
+  .segment-boundary-trigger-text {
+    font-size: var(--size-12);
+    font-weight: 500;
+    user-select: none;
   }
 
-  .segment-boundary-trigger-button:hover {
+  .segment-boundary-trigger svg {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+  }
+
+  .segment-boundary-trigger:hover {
     background: var(--color-gray-400);
-    color: var(--color-gray-1000);
+  }
+
+  .segment-boundary-trigger--boundary {
+    background: white;
+    border: 1px solid var(--color-gray-400);
+  }
+
+  .segment-boundary-trigger--boundary:hover {
+    background: var(--color-gray-200);
   }
 
   .segment-boundary-dropdown {
