@@ -344,9 +344,10 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    height: 20px;
-    padding: 2px 6px;
-    border-radius: 16px;
+    padding: 4px 6px;
+    border-radius: 6px;
+    font-size: 11px;
+    line-height: 16px;
     font-size: var(--size-12);
     font-weight: 500;
     user-select: none;
@@ -370,25 +371,6 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
     background-color: var(--color-gray-300);
     color: var(--color-gray-1000);
   }
-  // .segment-explorer-file-label--page {
-  //   background-color: var(--color-blue-300);
-  //   color: var(--color-blue-900);
-  // }
-  // .segment-explorer-file-label--not-found,
-  // .segment-explorer-file-label--forbidden,
-  // .segment-explorer-file-label--unauthorized {
-  //   background-color: var(--color-amber-300);
-  //   color: var(--color-amber-900);
-  // }
-  // .segment-explorer-file-label--loading {
-  //   background-color: var(--color-green-300);
-  //   color: var(--color-green-900);
-  // }
-  // .segment-explorer-file-label--error,
-  // .segment-explorer-file-label--global-error {
-  //   background-color: var(--color-red-300);
-  //   color: var(--color-red-900);
-  // }
   .segment-explorer-file-label--builtin {
     background-color: transparent;
     color: var(--color-gray-900);
